@@ -1,13 +1,16 @@
-// This version adds click to connect.
+// This version adds connections and evolution.
 // Clicking empty space creates a new circle.
 // Clicking an existing circle selects it (it animates).
-// Clicking a second circle creates a "road" between it and the first.
+// Clicking a second circle creates a "road" between it and the first,
+// and both circles "evolve" by revealing their middle pattern.
 //
 // ToDoList: 
 // 1.Click to select [✔] 
 // 2.Selected Circle will breath. [✔]
 // 3.Click two circles to connect them with a line. [✔]
-// 4.Connected circles will evolve and show a outer pattern. 
+// 4.Connected circles will evolve and show a middle pattern. [✔]
+// 5. Connected twice to show the outer pattern. []
+// 6. Two circles breath. [] 
 
 // =======================================================================
 // ======================== Global Variables =============================
@@ -21,7 +24,7 @@ let backgroundDots = []; // Stores background dot data to prevent flicker
 
 // --- New variables for Connections ---
 let connections = [];     // Stores all {from, to} connection objects
-let selectedCircle = null; // Stores the *first* selected circle (the connection source)
+let selectedCircle = null; // Stores the first selected circle (the connection source)
 
 
 // =========================================================================
@@ -36,7 +39,6 @@ function windowResized() {
     generateBackgroundDots();
     draw(); 
 }
-
 // --- Background texture: dense random scattered white dots ---
 
 // Generates dot data once and stores it in the backgroundDots array.
@@ -66,13 +68,12 @@ function drawBackgroundDots() {
 
 // --- New function to draw connections ---
 function drawRoads() {
-    let linkColor = color(240, 230, 200, 180); // Creamy color, semi-transparent
+    let linkColor = color(240, 230, 200, 180); // Creamy color
     push(); 
     stroke(linkColor);
-    strokeWeight(10); // Fixed wide width
-    strokeCap(ROUND); // Rounded ends
+    strokeWeight(10); 
+    strokeCap(ROUND); 
 
-    // Iterate over all stored connections
     for (let conn of connections) {
         line(conn.from.x, conn.from.y, conn.to.x, conn.to.y); 
     }
@@ -82,10 +83,6 @@ function drawRoads() {
 // =========================================================================
 // ======================= Interaction Logic ===============================
 // =========================================================================
-// This version is even more difficult to understand.
-// if the clickedCircle is not null, and you click on a different circle,
-// it will create a connection between the two circles.
-// To implement this, I add more condition check.
 
 function mouseClicked() {
     let clickedCircle = null; // Stores the circle clicked in *this* frame
@@ -98,7 +95,7 @@ function mouseClicked() {
         }
     }
 
-    // Deselect all circles first (for animation)
+    // Deselect all circles first (for animation state)
     for (let c of circles) {
         c.isSelected = false;
     }
@@ -116,6 +113,18 @@ function mouseClicked() {
             } else {
                 // User clicked a DIFFERENT circle: Create connection!
                 connections.push({ from: selectedCircle, to: clickedCircle });
+                
+                // --- EVOLUTION LOGIC ---
+                // Set both circles to show their middle pattern
+                selectedCircle.showMiddle = true;
+                clickedCircle.showMiddle = true;
+                
+                // Set their middle colors once to prevent flicker
+                selectedCircle.middleBaseColor = random(circleBasePalette);
+                selectedCircle.middlePatternColor = random(patternPalette);
+                clickedCircle.middleBaseColor = random(circleBasePalette);
+                clickedCircle.middlePatternColor = random(patternPalette);
+                // --- END EVOLUTION LOGIC ---
                 
                 // Make the new circle the active one (for chaining)
                 clickedCircle.isSelected = true;
@@ -140,12 +149,13 @@ function mouseClicked() {
         newCircle.innerBaseColor = random(circleBasePalette);
         newCircle.innerPatternColor = random(patternPalette);
         newCircle.isSelected = false; 
-        selectedCircle = newCircle; // It is now the source for the next connection
+        selectedCircle = newCircle; // It is now the source
         
         // 3. Add it to the array
         circles.push(newCircle);
     }
 }
+
 
 // ======================================================================
 // ======================== CIRCLE CLASS ================================
@@ -157,17 +167,23 @@ class Circle {
         this.y = y;
         this.r = r; 
         
+        // --- State Variables ---
         this.showInner = false; // if show the inner pattern
+        this.showMiddle = false; // New state for evolution
         this.isSelected = false; // for breathing animation
         
-        // Store colors and type to prevent flicker
+        // --- Inner Pattern Properties (for flicker-free draw) ---
         this.innerPatternType = 0;
         this.innerBaseColor = color(0);
         this.innerPatternColor = color(255);
-
-        // Store pattern types for future use
+        
+        // --- Middle Pattern Properties (for flicker-free draw) ---
+        this.middlePatternType = floor(random(4)); // Pre-select type
+        this.middleBaseColor = color(0);
+        this.middlePatternColor = color(255);
+        
+        // --- Outer Pattern Properties (for future use) ---
         this.outerPatternType = floor(random(4)); 
-        this.middlePatternType = floor(random(4)); 
         
         // use the seed to generate the same pattern to avoid flickering.
         this.seed = random(1000000);
@@ -179,8 +195,11 @@ class Circle {
         return (d < this.r); 
     }
 
+    // --- Main Display Method ---
     display() {
-        if (!this.showInner) return; // Do not draw if inactive
+        if (!this.showInner) {
+            return; // Do not draw if inactive
+        }
         
         // from the official p5.js reference: https://p5js.org/reference/p5/randomSeed/
         randomSeed(this.seed); // This makes all random() calls stable
@@ -196,14 +215,19 @@ class Circle {
             scale(scaleFactor); // Apply scaling transformation
         }
         
+        // --- New Layering Logic ---
+        // Draw middle layer first (if active)
+        if (this.showMiddle) {
+            this.displayMiddlePattern();
+        }
+        // Draw inner layer on top
         this.displayInnerPattern();  
         
         pop(); // only scale the selected circle, because of push and pop.
-    }
+    }
 
     // --- Drawing Utilities (Helpers) ---
-
-    drawIrregularBlob(rOffset, angle, size, col) {
+    drawIrregularBlob(rOffset, angle, size, col) { //no random rotation now to avoid flickering.
         let x = cos(angle) * rOffset;
         let y = sin(angle) * rOffset;
         fill(col);
@@ -220,7 +244,6 @@ class Circle {
         endShape(CLOSE);
         pop();
     }
-
     drawHandDrawnCircle(r, fillCol, strokeCol, strokeW) {
         if (fillCol) fill(fillCol); else noFill();
         if (strokeCol) stroke(strokeCol); else noStroke();
@@ -230,16 +253,92 @@ class Circle {
         for (let i = 0; i <= points; i++) {
             let angle = (TWO_PI / points) * i;
             let jitter = random(-r * 0.01, r * 0.01); // This random() is stable
-            let radius = r + jitter;
+            let radius = r + jitter;
             curveVertex(cos(angle) * radius, sin(angle) * radius);
         }
         endShape(CLOSE);
     }
+    // (drawHandDrawnEllipse is unused)
+    drawHandDrawnEllipse(rOffset, angle, w, h, rotation, col) { /* ... */ }
+
+    // ================= (Outer Pattern functions, currently unused) =================
+    displayOuterPattern() { /* ... */ }
+    // ...
+    
+    // ================= MIDDLE PATTERNS (Restored) =================
+    
+    // This function is now flicker-free, using stored colors
+    displayMiddlePattern() {
+        // Use stored colors
+        this.drawHandDrawnCircle(this.r * 0.55, this.middleBaseColor, null, 0);
+        let patCol = this.middlePatternColor;
+
+        // randomSeed() in display() ensures these patterns are stable
+        switch (this.middlePatternType) {
+            case 0: this.drawMiddleConcentricDotsPattern(patCol); break;
+            case 1: this.drawMiddleUshapePattern(patCol); break;
+            case 2: this.drawMiddleSolidRings(patCol); break;
+            case 3: this.drawMiddleConcentricRings(patCol); break; 
+        }
+    }
+
+  // Pattern 0: Concentric Dots
+    drawMiddleConcentricDotsPattern(col) {
+        let dotSize = this.r * 0.04;
+        for (let r = this.r * 0.2; r < this.r * 0.5; r += dotSize * 1.5) {
+            let count = floor((TWO_PI * r) / (dotSize * 1.5));
+            for (let i = 0; i < count; i++) {
+                let angle = (TWO_PI / count) * i;
+                this.drawIrregularBlob(r, angle, dotSize, col);
+            }
+        }
+    }
+
+    // Pattern 1: U-Shape Symbols
+    drawMiddleUshapePattern(col) {
+        noFill();
+        stroke(col);
+        strokeWeight(this.r * 0.02);
+        let count = 8; 
+        let r = this.r * 0.35; 
+    
+        for (let i = 0; i < count; i++) {
+            let angle = (TWO_PI / count) * i;
+            push();
+            rotate(angle); 
+            translate(r, 0); 
+            rotate(PI/2); 
+            arc(0, 0, this.r*0.15, this.r*0.15, 0, PI); 
+            pop();
+        }
+    }
+
+    // Pattern 2: Solid Rings
+    drawMiddleSolidRings(col) {
+        // Note: this.middlePatternColor is passed as 'col'
+        this.drawHandDrawnCircle(this.r * 0.45, col, null, 0);
+        // We use random() but it's stable due to randomSeed()
+        let col2 = random(patternPalette); 
+        this.drawHandDrawnCircle(this.r * 0.3, col2, null, 0);
+    }
+
+  // Pattern 3: Concentric Rings
+    drawMiddleConcentricRings(col) {
+        noFill();
+        stroke(col);
+        let baseStrokeWeight = this.r * 0.01; 
+        let numRings = 5;  
+        for (let j = 0; j < numRings; j++) {
+            let currentRadius = map(j, 0, numRings - 1, this.r * 0.3, this.r * 0.5);
+            strokeWeight(baseStrokeWeight * random(0.8, 1.2)); 
+            // We can just use the simple draw function here
+            // as randomSeed() makes its internal random() stable
+           this.drawHandDrawnCircle(currentRadius, null, col, null);
+        }
+    }
 
     // ================= INNER PATTERNS =================
-    
     displayInnerPattern() {
-        // Use stored colors (set on click)
         this.drawHandDrawnCircle(this.r * 0.25, this.innerBaseColor, null, 0);
         let patCol = this.innerPatternColor;
         
@@ -250,18 +349,17 @@ class Circle {
             // Spiral Line
             noFill();
             stroke(patCol);
-            strokeWeight(this.r * 0.015);
+            strokeWeight(this.r * 0.015);
             beginShape();
             for (let i = 0; i < 50; i++) {
-                let r = map(i, 0, 50, 0, this.r * 0.2);
+                let r = map(i, 0, 50, 0, this.r * 0.2);
                 let angle = i * 0.4;
                 curveVertex(cos(angle)*r, sin(angle)*r);
-            }
+            }
             endShape();
         }
     }
 } 
-
 // ======================================================================
 // ======================== SETUP & DRAW ================================
 // ======================================================================
@@ -275,7 +373,7 @@ function setup() {
     globalBgColor = color(30, 20, 15);
     circleBasePalette = [
         color(90, 40, 20),   // (Red Ochre)
-        color(60, 30, 15),   // (Deep Earth)
+        color(60, 30, 15),   // (Deep Earth)
         color(40, 45, 35),   // (Bush Green)
         color(110, 60, 30),  // (Burnt Orange)
         color(20, 20, 20)    // (Charcoal)
@@ -285,9 +383,9 @@ function setup() {
         color(255, 240, 200), // (Cream)
         color(255, 215, 0),   // (Sun Yellow)
         color(255, 140, 80),  // (Bright Ochre)
-        color(160, 180, 140), // (Sage)
-        color(200, 200, 210)  // (Ash)
-    ];
+        color(160, 180, 140), // (Sage)
+        color(200, 200, 210)  // (Ash)
+    ];
     
     // --- 2. Generate static background dots ---
     generateBackgroundDots();
@@ -305,6 +403,6 @@ function draw() {
 
     // 3. Main Circle Layer
     for (let c of circles) {
-    c.display();
+        c.display();
     }
 }
