@@ -6,6 +6,7 @@
   - Clicking on an existing circle selects it, causing it to animate with a breathing effect.
   - Clicking two different circles connects them with a line, triggering their evolution into new visual states.
 
+    ![Cooperation](assets/connect.png)  
 ---
 
 ## ✨ Individual Approach
