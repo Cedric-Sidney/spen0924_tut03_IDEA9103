@@ -296,8 +296,8 @@ class Circle {
         // It adds a glow effect, so the circles looks like celestial bodies.
         // Use the brightest pattern color for the glow
          
-        drawingContext.shadowBlur = 30;
-        drawingContext.shadowColor = random(patternPalette);
+        drawingContext.shadowBlur = 60;
+        drawingContext.shadowColor = this.innerBaseColor;
 
         // I want scale the circle, so It won't overlap with other circles
         if(this.connectionCount <=2){
