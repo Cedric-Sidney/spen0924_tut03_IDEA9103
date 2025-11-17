@@ -107,13 +107,15 @@ For my project, I want to add:
 
 ---
 
-## 📚 External References
+## 📚 External References and Acknowledgement
 - **p5.js Reference**:
   - [`randomSeed()`](https://p5js.org/reference/p5/randomSeed/) – used to stabilize random shapes.  
   - [`millis()`](https://p5js.org/reference/p5/millis/) – used for time‑based breathing animation.  
 - **Techniques from AI**:
   - Glow effect: `drawingContext.shadowBlur` determines the size of the glow effect.  
   - Glow effect: `drawingContext.shadowColor` determines the color of the glow effect.  
+- Language Enhancement
+  - I use AI to refine my language in comments and documentation, as I want to make it more natural.
 
 ---
 
